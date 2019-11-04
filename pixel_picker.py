@@ -45,6 +45,11 @@ class PixelPicker:
     def get_pixels(self):
         return [xy for xy in self.xys]
 
+    def clear(self):
+        for rect_coll in self.rect_colls:
+            rect_coll.set_paths([])
+        self.figure.canvas.draw()
+
 
 def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
     """
@@ -63,7 +68,9 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
 
     picker = PixelPicker(fig, rect_colls, mouse_button)
     input("Press enter to stop picking pixels")
-    return [class_num] + picker.get_pixels()
+    pixels = [class_num] + picker.get_pixels()
+    picker.clear()
+    return pixels
 
 
 def generate_random_image(loc, title, h=60, w=60, old_ax=None):
