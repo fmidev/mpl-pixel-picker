@@ -1,0 +1,6 @@
+/venv/
+*.iml
+/.idea/
+*.tiff
+/HDF5*
+/snow_example.py
