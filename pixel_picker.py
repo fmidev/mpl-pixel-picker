@@ -10,33 +10,38 @@ X_OFFSET = -0.5
 
 class PixelPicker:
     def __init__(self, figure, rect_coll, mouse_button):
-        self.rects = set()
+        self.xys = set()
+        self.rects = []
         self.figure = figure
         self.rect_coll = rect_coll
         self.mouse_button = mouse_button
-        self.cid = figure.canvas.mpl_connect('button_press_event', self)
+        self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
 
-    def __call__(self, event):
+    def _on_click(self, event):
         # print('click', event)
-        if event.inaxes != self.figure.get_axes()[0] or event.button != self.mouse_button: return
-        self._add_rectangle(event)
+        if self._valid_event(event):
+            self._add_rectangle(event)
 
     def _on_motion(self, event):
         # print('motion', event)
-        if event.inaxes != self.figure.get_axes()[0] or event.button != self.mouse_button: return
-        self._add_rectangle(event)
+        if self._valid_event(event):
+            self._add_rectangle(event)
+
+    def _valid_event(self, event):
+        return event.inaxes == self.figure.get_axes()[0] and event.button == self.mouse_button
 
     def _add_rectangle(self, event):
-        xy = (int(round(event.xdata)) + X_OFFSET, int(round(event.ydata)) + Y_OFFSET)
-        size_before = len(self.rects)
-        self.rects.add(Rectangle(xy, 1, 1))
-        if len(self.rects) > size_before:
+        xy = (int(round(event.xdata)), int(round(event.ydata)))
+        size_before = len(self.xys)
+        self.xys.add(xy)
+        if len(self.xys) > size_before:
+            self.rects.append(Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1))
             self.rect_coll.set_paths(self.rects)
             self.figure.canvas.draw()
 
     def get_pixels(self):
-        return [(x - X_OFFSET, y - Y_OFFSET) for x, y in map(lambda r: r.xy, self.rects)]
+        return [xy for xy in self.xys]
 
 
 def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
