@@ -13,6 +13,7 @@ class PixelPicker:
         self.xys = set()
         self.rects = []
         self.figure = figure
+        self.axs = figure.get_axes()
         self.rect_colls = rect_colls
         self.mouse_button = mouse_button
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
@@ -29,7 +30,7 @@ class PixelPicker:
             self._add_rectangle(event)
 
     def _valid_event(self, event):
-        return event.inaxes == self.figure.get_axes()[0] and event.button == self.mouse_button
+        return event.inaxes in self.axs and event.button == self.mouse_button
 
     def _add_rectangle(self, event):
         xy = (int(round(event.xdata)), int(round(event.ydata)))
@@ -56,9 +57,9 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
     fig = list(map(plt.figure, plt.get_fignums()))[0]
     rect_colls = []
     for axes in fig.get_axes():
-        pc = PatchCollection([], facecolors=color, edgecolors=color)
-        axes.add_collection(pc)
-        rect_colls.append(pc)
+        rectangle_collection = PatchCollection([], facecolors=color, edgecolors=color)
+        axes.add_collection(rectangle_collection)
+        rect_colls.append(rectangle_collection)
 
     picker = PixelPicker(fig, rect_colls, mouse_button)
     input("Press enter to stop picking pixels")
