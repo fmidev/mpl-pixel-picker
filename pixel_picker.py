@@ -9,11 +9,11 @@ X_OFFSET = -0.5
 
 
 class PixelPicker:
-    def __init__(self, figure, rect_coll, mouse_button):
+    def __init__(self, figure, rect_colls, mouse_button):
         self.xys = set()
         self.rects = []
         self.figure = figure
-        self.rect_coll = rect_coll
+        self.rect_colls = rect_colls
         self.mouse_button = mouse_button
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
@@ -37,7 +37,8 @@ class PixelPicker:
         self.xys.add(xy)
         if len(self.xys) > size_before:
             self.rects.append(Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1))
-            self.rect_coll.set_paths(self.rects)
+            for rect_coll in self.rect_colls:
+                rect_coll.set_paths(self.rects)
             self.figure.canvas.draw()
 
     def get_pixels(self):
@@ -53,10 +54,13 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
-    ax = fig.get_axes()[0]  # plt.gca()
-    rect_coll = PatchCollection([], facecolors=color, edgecolors=color)
-    ax.add_collection(rect_coll)
-    picker = PixelPicker(fig, rect_coll, mouse_button)
+    rect_colls = []
+    for axes in fig.get_axes():
+        pc = PatchCollection([], facecolors=color, edgecolors=color)
+        axes.add_collection(pc)
+        rect_colls.append(pc)
+
+    picker = PixelPicker(fig, rect_colls, mouse_button)
     input("Press enter to stop picking pixels")
     return [class_num] + picker.get_pixels()
 
