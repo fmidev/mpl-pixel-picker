@@ -18,16 +18,22 @@ class PixelPicker:
         self.mouse_button = mouse_button
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
+        self.cidrealease = figure.canvas.mpl_connect('button_release_event', self._on_release)
 
     def _on_click(self, event):
         # print('click', event)
         if self._valid_event(event):
+            self.figure.canvas.toolbar.set_cursor(2)
             self._add_rectangle(event)
 
     def _on_motion(self, event):
         # print('motion', event)
         if self._valid_event(event):
             self._add_rectangle(event)
+
+    def _on_release(self,event):
+        if self._valid_event(event):
+            self.figure.canvas.toolbar.set_cursor(1)
 
     def _valid_event(self, event):
         return (
