@@ -30,7 +30,15 @@ class PixelPicker:
             self._add_rectangle(event)
 
     def _valid_event(self, event):
-        return event.inaxes in self.axs and event.button == self.mouse_button and self.figure.canvas.manager.toolbar._active == None
+        return (
+                event.inaxes in self.axs
+                # Right button pressed
+                and event.button == self.mouse_button
+                # No tool is active
+                and self.figure.canvas.manager.toolbar._active == None
+                # Cursor inside image
+                and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
+        )
 
     def _add_rectangle(self, event):
         xy = (int(round(event.xdata)), int(round(event.ydata)))
