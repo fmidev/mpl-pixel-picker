@@ -9,37 +9,59 @@ X_OFFSET = -0.5
 
 
 class PixelPicker:
-    def __init__(self, figure, rect_colls, mouse_button):
+    def __init__(self, figure, rect_colls, pick_button, erase_button):
         self.xys = set()
         self.rects = []
         self.figure = figure
         self.axs = figure.get_axes()
         self.rect_colls = rect_colls
-        self.mouse_button = mouse_button
+        self.pick_button = pick_button
+        self.erase_button = erase_button
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
         self.cidrealease = figure.canvas.mpl_connect('button_release_event', self._on_release)
 
     def _on_click(self, event):
         # print('click', event)
-        if self._valid_event(event):
-            self.figure.canvas.toolbar.set_cursor(2)
+        if self._valid_pick_event(event):
+            # Hand mouse cursor = 0, arrow = 1, cross = 2
+            self.figure.canvas.toolbar.set_cursor(0)
             self._add_rectangle(event)
+        if self._valid_erase_event(event):
+            # Hand mouse cursor = 0, arrow = 1, cross = 2
+            self.figure.canvas.toolbar.set_cursor(0)
+            self._remove_rectangle(event)
 
     def _on_motion(self, event):
         # print('motion', event)
-        if self._valid_event(event):
+        if self._valid_pick_event(event):
             self._add_rectangle(event)
+        if self._valid_erase_event(event):
+            self._remove_rectangle(event)
 
     def _on_release(self,event):
-        if self._valid_event(event):
+        # print('relese', event)
+        if self._valid_pick_event(event):
+            self.figure.canvas.toolbar.set_cursor(1)
+        if self._valid_erase_event(event):
             self.figure.canvas.toolbar.set_cursor(1)
 
-    def _valid_event(self, event):
+    def _valid_pick_event(self, event):
         return (
                 event.inaxes in self.axs
                 # Right button pressed
-                and event.button == self.mouse_button
+                and event.button == self.pick_button
+                # No tool is active
+                and self.figure.canvas.manager.toolbar._active == None
+                # Cursor inside image
+                and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
+        )
+
+    def _valid_erase_event(self, event):
+        return (
+                event.inaxes in self.axs
+                # Right button pressed
+                and event.button == self.erase_button
                 # No tool is active
                 and self.figure.canvas.manager.toolbar._active == None
                 # Cursor inside image
@@ -56,6 +78,16 @@ class PixelPicker:
                 rect_coll.set_paths(self.rects)
             self.figure.canvas.draw()
 
+    def _remove_rectangle(self, event):
+        xy = (int(round(event.xdata)), int(round(event.ydata)))
+        size_before = len(self.xys)
+        self.xys.discard(xy)
+        if len(self.xys) < size_before:
+            self.rects = list(filter(lambda rect: str(rect) != str(Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1)), self.rects))
+            for rect_coll in self.rect_colls:
+                rect_coll.set_paths(self.rects)
+            self.figure.canvas.draw()
+
     def get_pixels(self):
         return [xy for xy in self.xys]
 
@@ -65,12 +97,13 @@ class PixelPicker:
         self.figure.canvas.draw()
 
 
-def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
+def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3):
     """
 
     :param class_num: Number of the class
     :param color: Color of the painted pixels
-    :param mouse_button: 1 = left click, 3 = right click
+    :param pick_button: 1 = left click, 3 = right click
+    :param erase_button: 1 = left click, 3 = right click
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
@@ -80,7 +113,7 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), mouse_button=3):
         axes.add_collection(rectangle_collection)
         rect_colls.append(rectangle_collection)
 
-    picker = PixelPicker(fig, rect_colls, mouse_button)
+    picker = PixelPicker(fig, rect_colls, pick_button, erase_button)
     input("Press enter to stop picking pixels")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
