@@ -9,7 +9,7 @@ X_OFFSET = -0.5
 
 
 class PixelPicker:
-    def __init__(self, figure, rect_colls, pick_button, erase_button, interpolation):
+    def __init__(self, figure, rect_colls, pick_button, erase_button, is_interpolation_used):
         self.xys = set()
         self.previous_xy = None
         self.rects = []
@@ -18,7 +18,7 @@ class PixelPicker:
         self.rect_colls = rect_colls
         self.pick_button = pick_button
         self.erase_button = erase_button
-        self.interpolation = interpolation
+        self.is_interpolation_used = is_interpolation_used
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
         self.cidrealease = figure.canvas.mpl_connect('button_release_event', self._on_release)
@@ -77,13 +77,13 @@ class PixelPicker:
     def get_interpolated_xy(self, xy, previous_xy):
         interpolated_xy = []
         is_not_inverted = abs(xy[0] - previous_xy[0]) >= abs(xy[1] - previous_xy[1])
-        xy = xy if is_not_inverted == True else (xy[1], xy[0])
-        previous_xy = previous_xy if is_not_inverted == True else (previous_xy[1], previous_xy[0])
+        xy = xy if is_not_inverted else (xy[1], xy[0])
+        previous_xy = previous_xy if is_not_inverted else (previous_xy[1], previous_xy[0])
         dx = xy[0] - previous_xy[0]
         dy = xy[1] - previous_xy[1]
         for x in range (previous_xy[0], xy[0], -1 if previous_xy[0] > xy[0] else 1):
             y = previous_xy[1] + dy * (x - previous_xy[0]) / dx
-            interpolated_xy.append((int(round(x if is_not_inverted == True else y)), int(round(y if is_not_inverted == True else x))))
+            interpolated_xy.append((int(round(x if is_not_inverted else y)), int(round(y if is_not_inverted else x))))
         return interpolated_xy
 
     def get_rects(self, xys):
@@ -96,7 +96,7 @@ class PixelPicker:
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         size_before = len(self.xys)
         self.xys.add(xy)
-        if self.interpolation == True:
+        if self.is_interpolation_used:
             interpolated_xy = self.get_interpolated_xy(xy, self.previous_xy)
             for xy in interpolated_xy:
                 self.xys.add((xy[0], xy[1]))
@@ -110,7 +110,7 @@ class PixelPicker:
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         size_before = len(self.xys)
         self.xys.discard(xy)
-        if self.interpolation == True:
+        if self.is_interpolation_used:
             interpolated_xy = self.get_interpolated_xy(xy, self.previous_xy)
             for xy in interpolated_xy:
                 self.xys.discard((xy[0], xy[1]))
@@ -129,14 +129,14 @@ class PixelPicker:
         self.figure.canvas.draw()
 
 
-def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, interpolation=True):
+def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True):
     """
 
     :param class_num: Number of the class
     :param color: Color of the painted pixels
     :param pick_button: 1 = left click, 3 = right click
     :param erase_button: 1 = left click, 3 = right click
-    :paramn interpolation: True = Interpolates points in between when moving mouse too fast, False = No interpolation
+    :paramn is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
@@ -146,7 +146,7 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3
         axes.add_collection(rectangle_collection)
         rect_colls.append(rectangle_collection)
 
-    picker = PixelPicker(fig, rect_colls, pick_button, erase_button, interpolation)
+    picker = PixelPicker(fig, rect_colls, pick_button, erase_button, is_interpolation_used)
     input("Press enter to stop picking pixels")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
