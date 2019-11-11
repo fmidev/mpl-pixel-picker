@@ -10,7 +10,7 @@ X_OFFSET = -0.5
 
 class PixelPicker:
     def __init__(self, figure, rect_colls, pick_button, erase_button, is_interpolation_used):
-        self.xys = set()
+        self.xys = dict()
         self.previous_xy = None
         self.rects = []
         self.figure = figure
@@ -75,7 +75,7 @@ class PixelPicker:
         )
 
     def get_interpolated_xy(self, xy, previous_xy):
-        interpolated_xy = []
+        interpolated_xy = set()
         is_not_inverted = abs(xy[0] - previous_xy[0]) >= abs(xy[1] - previous_xy[1])
         xy = xy if is_not_inverted else (xy[1], xy[0])
         previous_xy = previous_xy if is_not_inverted else (previous_xy[1], previous_xy[0])
@@ -83,7 +83,7 @@ class PixelPicker:
         dy = xy[1] - previous_xy[1]
         for x in range (previous_xy[0], xy[0], -1 if previous_xy[0] > xy[0] else 1):
             y = previous_xy[1] + dy * (x - previous_xy[0]) / dx
-            interpolated_xy.append((int(round(x if is_not_inverted else y)), int(round(y if is_not_inverted else x))))
+            interpolated_xy.add((int(round(x if is_not_inverted else y)), int(round(y if is_not_inverted else x))))
         return interpolated_xy
 
     def get_rects(self, xys):
@@ -93,41 +93,46 @@ class PixelPicker:
         return rects
 
     def _add_rectangle(self, event):
+        xys_to_add = set()
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         size_before = len(self.xys)
-        self.xys.add(xy)
+        xys_to_add.add(xy)
+
         if self.is_interpolation_used:
-            interpolated_xy = self.get_interpolated_xy(xy, self.previous_xy)
-            for xy in interpolated_xy:
-                self.xys.add((xy[0], xy[1]))
-        if len(self.xys) > size_before:
-            self.rects = self.get_rects(self.xys)
+            xys_to_add.update(self.get_interpolated_xy(xy, self.previous_xy))
+
+        if len(xys_to_add.union(self.xys.keys())) > size_before:
+            for xy in xys_to_add:
+                self.xys[xy] = Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1)
+            rects = self.xys.values()
             for rect_coll in self.rect_colls:
-                rect_coll.set_paths(self.rects)
+                rect_coll.set_paths(rects)
             self.figure.canvas.draw()
 
     def _remove_rectangle(self, event):
+        xys_to_remove = set()
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         size_before = len(self.xys)
-        self.xys.discard(xy)
+        xys_to_remove.add(xy)
+
         if self.is_interpolation_used:
-            interpolated_xy = self.get_interpolated_xy(xy, self.previous_xy)
-            for xy in interpolated_xy:
-                self.xys.discard((xy[0], xy[1]))
-        if len(self.xys) < size_before:
-            self.rects = self.get_rects(self.xys)
+            xys_to_remove.update(self.get_interpolated_xy(xy, self.previous_xy))
+
+        if len(xys_to_remove.difference(self.xys.keys())) < size_before:
+            for xy in xys_to_remove:
+                self.xys.pop(xy, None)
+            rects = self.xys.values()
             for rect_coll in self.rect_colls:
-                rect_coll.set_paths(self.rects)
+                rect_coll.set_paths(rects)
             self.figure.canvas.draw()
 
     def get_pixels(self):
-        return [xy for xy in self.xys]
+        return list(self.xys.keys())
 
     def clear(self):
         for rect_coll in self.rect_colls:
             rect_coll.set_paths([])
         self.figure.canvas.draw()
-
 
 def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True):
     """
