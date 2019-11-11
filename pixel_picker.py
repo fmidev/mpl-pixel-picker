@@ -30,7 +30,7 @@ class PixelPicker:
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
             self._add_rectangle(event)
-        if self._valid_erase_event(event):
+        elif self._valid_erase_event(event):
             # Hand mouse cursor = 0, arrow = 1, cross = 2
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
@@ -41,11 +41,11 @@ class PixelPicker:
         if self._valid_pick_event(event):
             self._add_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
-        if self._valid_erase_event(event):
+        elif self._valid_erase_event(event):
             self._remove_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
 
-    def _on_release(self,event):
+    def _on_release(self, event):
         # print('relese', event)
         if self._valid_pick_event(event):
             self.figure.canvas.toolbar.set_cursor(1)
@@ -81,27 +81,23 @@ class PixelPicker:
         previous_xy = previous_xy if is_not_inverted else (previous_xy[1], previous_xy[0])
         dx = xy[0] - previous_xy[0]
         dy = xy[1] - previous_xy[1]
-        for x in range (previous_xy[0], xy[0], -1 if previous_xy[0] > xy[0] else 1):
+        for x in range(previous_xy[0], xy[0], -1 if previous_xy[0] > xy[0] else 1):
             y = previous_xy[1] + dy * (x - previous_xy[0]) / dx
             interpolated_xy.add((int(round(x if is_not_inverted else y)), int(round(y if is_not_inverted else x))))
         return interpolated_xy
 
-    def get_rects(self, xys):
-        rects = []
-        for xy in xys:
-            rects.append(Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1))
-        return rects
+    def _get_xys_from_event(self, event):
+        xys = set()
+        xy = (int(round(event.xdata)), int(round(event.ydata)))
+        xys.add(xy)
+        if self.is_interpolation_used:
+            xys.update(self.get_interpolated_xy(xy, self.previous_xy))
+        return xys
 
     def _add_rectangle(self, event):
-        xys_to_add = set()
-        xy = (int(round(event.xdata)), int(round(event.ydata)))
-        size_before = len(self.xys)
-        xys_to_add.add(xy)
+        xys_to_add = self._get_xys_from_event(event).difference(self.xys.keys())
 
-        if self.is_interpolation_used:
-            xys_to_add.update(self.get_interpolated_xy(xy, self.previous_xy))
-
-        if len(xys_to_add.union(self.xys.keys())) > size_before:
+        if len(xys_to_add) > 0:
             for xy in xys_to_add:
                 self.xys[xy] = Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1)
             rects = self.xys.values()
@@ -110,15 +106,9 @@ class PixelPicker:
             self.figure.canvas.draw()
 
     def _remove_rectangle(self, event):
-        xys_to_remove = set()
-        xy = (int(round(event.xdata)), int(round(event.ydata)))
-        size_before = len(self.xys)
-        xys_to_remove.add(xy)
+        xys_to_remove = self._get_xys_from_event(event).intersection(self.xys.keys())
 
-        if self.is_interpolation_used:
-            xys_to_remove.update(self.get_interpolated_xy(xy, self.previous_xy))
-
-        if len(xys_to_remove.difference(self.xys.keys())) < size_before:
+        if len(xys_to_remove) > 0:
             for xy in xys_to_remove:
                 self.xys.pop(xy, None)
             rects = self.xys.values()
@@ -134,6 +124,7 @@ class PixelPicker:
             rect_coll.set_paths([])
         self.figure.canvas.draw()
 
+
 def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True):
     """
 
@@ -141,7 +132,7 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3
     :param color: Color of the painted pixels
     :param pick_button: 1 = left click, 3 = right click
     :param erase_button: 1 = left click, 3 = right click
-    :paramn is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
+    :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
