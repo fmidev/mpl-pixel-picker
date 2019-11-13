@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
 
 # When plotting in matplotlib the upper left corner has the values of:
 Y_OFFSET = - 0.5
@@ -9,25 +7,23 @@ X_OFFSET = -0.5
 
 
 class PixelPicker:
-    def __init__(self, figure, rect_colls, lines, markersize, pick_button, erase_button, is_interpolation_used,
-                 use_rectangles=False):
-        self.xys = dict()
+    def __init__(self, figure, lines, markersize, pick_button, erase_button, is_interpolation_used):
+        self.xys = set()
         self.previous_xy = None
-        self.rects = []
         self.figure = figure
         self.axs = figure.get_axes()
+        self.pick_button = pick_button
+        self.erase_button = erase_button
+        self.is_interpolation_used = is_interpolation_used
 
-        self.use_rectangles = use_rectangles
+        # Draw must be called in order to update the marker size properly
         self._render()
         self.size_data = markersize
         self.size = markersize
         self.lines = lines
         self._update_marker_size()
 
-        self.rect_colls = rect_colls
-        self.pick_button = pick_button
-        self.erase_button = erase_button
-        self.is_interpolation_used = is_interpolation_used
+        # Callbacks
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
         self.cidmotion = figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
         self.cidrealease = figure.canvas.mpl_connect('button_release_event', self._on_release)
@@ -48,32 +44,20 @@ class PixelPicker:
             # Hand mouse cursor = 0, arrow = 1, cross = 2
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
-            if self.use_rectangles:
-                self._add_rectangle2(event)
-            else:
-                self._add_rectangle(event)
+            self._add_rectangle(event)
         elif self._valid_erase_event(event):
             # Hand mouse cursor = 0, arrow = 1, cross = 2
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
-            if self.use_rectangles:
-                self._remove_rectangle2(event)
-            else:
-                self._remove_rectangle(event)
+            self._remove_rectangle(event)
 
     def _on_motion(self, event):
         # print('motion', event)
         if self._valid_pick_event(event):
-            if self.use_rectangles:
-                self._add_rectangle2(event)
-            else:
-                self._add_rectangle(event)
+            self._add_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
         elif self._valid_erase_event(event):
-            if self.use_rectangles:
-                self._remove_rectangle2(event)
-            else:
-                self._remove_rectangle(event)
+            self._remove_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
 
     def _on_release(self, event):
@@ -89,7 +73,7 @@ class PixelPicker:
                 # Right button pressed
                 and event.button == self.pick_button
                 # No tool is active
-                and self.figure.canvas.manager.toolbar._active == None
+                and self.figure.canvas.manager.toolbar._active is None
                 # Cursor inside image
                 and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
         )
@@ -100,7 +84,7 @@ class PixelPicker:
                 # Right button pressed
                 and event.button == self.erase_button
                 # No tool is active
-                and self.figure.canvas.manager.toolbar._active == None
+                and self.figure.canvas.manager.toolbar._active is None
                 # Cursor inside image
                 and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
         )
@@ -126,62 +110,37 @@ class PixelPicker:
         return xys
 
     def _add_rectangle(self, event):
-        xys_to_add = self._get_xys_from_event(event).difference(self.xys.keys())
+        xys_to_add = self._get_xys_from_event(event).difference(self.xys)
 
         if len(xys_to_add) > 0:
-            for xy in xys_to_add:
-                self.xys[xy] = Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1)
+            self.xys.update(xys_to_add)
+            xs, ys = zip(*self.xys)
             for line in self.lines:
-                line.set_data([xy[0] for xy in self.xys.keys()], [xy[1] for xy in self.xys.keys()])
-            self._render()
-
-    def _add_rectangle2(self, event):
-        xys_to_add = self._get_xys_from_event(event).difference(self.xys.keys())
-
-        if len(xys_to_add) > 0:
-            for xy in xys_to_add:
-                self.xys[xy] = Rectangle((xy[0] + X_OFFSET, xy[1] + Y_OFFSET), 1, 1)
-            rects = self.xys.values()
-            for rect_coll in self.rect_colls:
-                rect_coll.set_paths(rects)
+                line.set_data(xs, ys)
             self._render()
 
     def _remove_rectangle(self, event):
-        xys_to_remove = self._get_xys_from_event(event).intersection(self.xys.keys())
+        xys_to_remove = self._get_xys_from_event(event).intersection(self.xys)
         if len(xys_to_remove) > 0:
-            for xy in xys_to_remove:
-                self.xys.pop(xy, None)
+            self.xys = self.xys.difference(xys_to_remove)
+            xs, ys = zip(*self.xys)
             for line in self.lines:
-                line.set_data([xy[0] for xy in self.xys.keys()], [xy[1] for xy in self.xys.keys()])
-            self._render()
-
-    def _remove_rectangle2(self, event):
-        xys_to_remove = self._get_xys_from_event(event).intersection(self.xys.keys())
-
-        if len(xys_to_remove) > 0:
-            for xy in xys_to_remove:
-                self.xys.pop(xy, None)
-            rects = self.xys.values()
-            for rect_coll in self.rect_colls:
-                rect_coll.set_paths(rects)
+                line.set_data(xs, ys)
             self._render()
 
     def _render(self):
         self.figure.canvas.draw_idle()
 
     def get_pixels(self):
-        return list(self.xys.keys())
+        return list(self.xys)
 
     def clear(self):
-        for rect_coll in self.rect_colls:
-            rect_coll.set_paths([])
         for line in self.lines:
             line.set_data([], [])
         self._render()
 
 
-def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True,
-                markersize=1):
+def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True):
     """
 
     :param class_num: Number of the class
@@ -192,17 +151,13 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
-    rect_colls = []
     lines = []
+    markersize = 1
     for axes in fig.get_axes():
         line, = axes.plot([], [], linestyle="none", marker='s', markersize=markersize, color=color)
         lines.append(line)
-        rectangle_collection = PatchCollection([], facecolors=color, edgecolors=color)
-        axes.add_collection(rectangle_collection)
-        rect_colls.append(rectangle_collection)
 
-    picker = PixelPicker(fig, rect_colls, lines, markersize, pick_button, erase_button, is_interpolation_used,
-                         use_rectangles=False)
+    picker = PixelPicker(fig, lines, markersize, pick_button, erase_button, is_interpolation_used)
     input("Press enter to stop picking pixels")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
