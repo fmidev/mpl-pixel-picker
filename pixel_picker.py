@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-# When plotting in matplotlib the upper left corner has the values of:
-Y_OFFSET = - 0.5
-X_OFFSET = -0.5
-
 
 class PixelPicker:
-    def __init__(self, figure, lines, markersize, pick_button, erase_button, is_interpolation_used):
+    # When plotting in matplotlib the OFFSET is used with image extent
+    OFFSET = 0.5
+    MARKERSIZE = 1
+
+    def __init__(self, figure, lines, radius, pick_button, erase_button, is_interpolation_used):
         self.xys = set()
         self.previous_xy = None
         self.figure = figure
@@ -15,11 +15,12 @@ class PixelPicker:
         self.pick_button = pick_button
         self.erase_button = erase_button
         self.is_interpolation_used = is_interpolation_used
+        self.radius = radius
+        self.x_min, self.x_max, self.y_max, self.y_min = [int(val + self.OFFSET) for val in
+                                                          self.axs[0].get_images()[0].get_extent()]
 
         # Draw must be called in order to update the marker size properly
         self._render()
-        self.size_data = markersize
-        self.size = markersize
         self.lines = lines
         self._update_marker_size()
 
@@ -34,7 +35,7 @@ class PixelPicker:
         ppd = 72. / self.axs[0].figure.dpi
         trans = self.axs[0].transData.transform
         for line in self.lines:
-            size = ((trans((1, self.size_data)) - trans((0, 0))) * ppd)[1]
+            size = ((trans((1, self.MARKERSIZE)) - trans((0, 0))) * ppd)[1]
             line.set_markersize(abs(size))
         self._render()
 
@@ -89,7 +90,7 @@ class PixelPicker:
                 and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
         )
 
-    def get_interpolated_xy(self, xy, previous_xy):
+    def _get_interpolated_xy(self, xy, previous_xy):
         interpolated_xy = set()
         is_not_inverted = abs(xy[0] - previous_xy[0]) >= abs(xy[1] - previous_xy[1])
         xy = xy if is_not_inverted else (xy[1], xy[0])
@@ -106,8 +107,19 @@ class PixelPicker:
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         xys.add(xy)
         if self.is_interpolation_used:
-            xys.update(self.get_interpolated_xy(xy, self.previous_xy))
-        return xys
+            xys.update(self._get_interpolated_xy(xy, self.previous_xy))
+
+        rounding_xys = set()
+        if self.radius > 0:
+            for xy in xys:
+                xo, yo = xy
+                for x in range(max(xo - self.radius, self.x_min), min(xo + self.radius + 1, self.x_max)):
+                    for y in range(max(yo - self.radius, self.y_min), min(yo + self.radius + 1, self.y_max)):
+                        # In circle
+                        if (x - xo) ** 2 + (y - yo) ** 2 <= self.radius ** 2:
+                            rounding_xys.add((x, y))
+
+        return xys.union(rounding_xys)
 
     def _add_rectangle(self, event):
         xys_to_add = self._get_xys_from_event(event).difference(self.xys)
@@ -140,10 +152,12 @@ class PixelPicker:
         self._render()
 
 
-def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3, is_interpolation_used=True):
+def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5), pick_button=1, erase_button=3,
+                is_interpolation_used=True):
     """
 
     :param class_num: Number of the class
+    :param radius: Radius of the drawing circle
     :param color: Color of the painted pixels
     :param pick_button: 1 = left click, 3 = right click
     :param erase_button: 1 = left click, 3 = right click
@@ -152,12 +166,12 @@ def pick_pixels(class_num=0, color=(1, 0, 0, 0.7), pick_button=1, erase_button=3
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
     lines = []
-    markersize = 1
+
     for axes in fig.get_axes():
-        line, = axes.plot([], [], linestyle="none", marker='s', markersize=markersize, color=color)
+        line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
         lines.append(line)
 
-    picker = PixelPicker(fig, lines, markersize, pick_button, erase_button, is_interpolation_used)
+    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, is_interpolation_used)
     input("Press enter to stop picking pixels")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
