@@ -49,6 +49,11 @@ class PixelPicker:
         """Returns list of coordinate tuples"""
         return list(self.xys)
 
+    def reset_pixels(self):
+        """Reset picked pixels"""
+        self.xys = set()
+        self._draw_picked_pixels()
+
     def clear(self):
         """Clears picked pixels"""
         for line in self.lines:
@@ -75,8 +80,7 @@ class PixelPicker:
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
             self._remove_rectangle(event)
         elif self._valid_event(event, self.reset_button):
-            self.xys = set()
-            self._draw_picked_pixels()
+            self.reset_pixels()
 
     def _on_motion(self, event):
         if self._valid_event(event, self.pick_button):
@@ -176,8 +180,7 @@ def gui(picker):
         picker.radius = int(e1.get())
 
     def reset_xys():
-        picker.xys = set()
-        picker._draw_picked_pixels()
+        picker.reset_pixels()
 
     tk.Button(gui_window,
         text='Set Radius',
@@ -194,10 +197,11 @@ def gui(picker):
 def ui(picker):
     continue_picking = True
     while continue_picking:
-        result = input("Press enter to stop picking pixels or choose a pixel radius: ")
+        result = input("Press enter to stop picking pixels, r to reset pixels or choose a pixel radius: ")
         if result == "":
             continue_picking  = False
-            break
+        elif result == "r":
+            picker.reset_pixels()
         elif result.isdigit():
             picker.radius = int(result)
         else:
