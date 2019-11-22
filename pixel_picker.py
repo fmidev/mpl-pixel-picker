@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
+import importlib
 
 class PixelPicker:
     # When plotting in matplotlib the OFFSET is used with image extent
@@ -171,29 +171,37 @@ class PixelPicker:
         self._render()
 
 
-def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
-                pick_button=1, erase_button=3, reset_button=2,
-                is_interpolation_used=True):
-    """
+def gui(picker):
+    import tkinter as tk
 
-    :param class_num: Number of the class
-    :param radius: Radius of the drawing circle
-    :param color: Color of the painted pixels
-    :param pick_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
-    :param erase_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
-    :param reset_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
-    :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
-    :return: Class number and after that pixel x and y coordinates as tuples inside a list
-    """
-    fig = list(map(plt.figure, plt.get_fignums()))[0]
-    lines = []
+    gui_window = tk.Tk()
+    gui_window.title("Pixel picker")
+    tk.Label(gui_window, text="Radius").grid(row=0, pady=4)
+    e1 = tk.Entry(gui_window)
+    e1.insert(10, picker.radius)
+    e1.grid(row=0, column=1)
+
+    def change_radius():
+        picker.radius = int(e1.get())
+
+    def reset_xys():
+        picker.xys = set()
+        picker._draw_picked_pixels()
+
+    tk.Button(gui_window,
+        text='Set Radius',
+        command=change_radius).grid(row=2, column=0, sticky=tk.W, pady=4, padx=4)
+    tk.Button(gui_window,
+        text='Reset pixels',
+        command=reset_xys).grid(row=2, column=2, sticky=tk.W, pady=4, padx=4)
+    tk.Button(gui_window,
+        text='Get pixels',
+        command=gui_window.quit).grid(row=2, column=3, sticky=tk.W, pady=4, padx=4)
+    gui_window.mainloop()
+
+
+def ui(picker):
     continue_picking = True
-
-    for axes in fig.get_axes():
-        line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
-        lines.append(line)
-
-    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used)
     while continue_picking:
         result = input("Press enter to stop picking pixels or choose a pixel radius: ")
         if result == "":
@@ -203,7 +211,38 @@ def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
             picker.radius = int(result)
         else:
             print("Unknown command")
-    #input("Press enter to stop picking pixels ")
+
+
+def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
+                pick_button=1, erase_button=3, reset_button=2,
+                is_interpolation_used=True, use_gui=True):
+    """
+
+    :param class_num: Number of the class
+    :param radius: Radius of the drawing circle (0 = 1 pixel)
+    :param color: Color of the painted pixels
+    :param pick_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
+    :param erase_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
+    :param reset_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
+    :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
+    :return: Class number and after that pixel x and y coordinates as tuples inside a list
+    """
+    fig = list(map(plt.figure, plt.get_fignums()))[0]
+    lines = []
+
+    for axes in fig.get_axes():
+        line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
+        lines.append(line)
+
+    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used)
+
+    if use_gui and importlib.util.find_spec("tkinter"):
+        gui(picker)
+    else:
+        if not importlib.util.find_spec("tkinter"):
+            print("Tkinter not installed. Using command line interface.")
+        ui(picker)
+
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
     return pixels if len(pixels) > 1 else []
