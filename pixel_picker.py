@@ -90,7 +90,8 @@ class PixelPicker:
                 and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
         )
 
-    def _get_interpolated_xy(self, xy, previous_xy):
+    @staticmethod
+    def _get_interpolated_xy(xy, previous_xy):
         interpolated_xy = set()
         is_not_inverted = abs(xy[0] - previous_xy[0]) >= abs(xy[1] - previous_xy[1])
         xy = xy if is_not_inverted else (xy[1], xy[0])
@@ -123,22 +124,25 @@ class PixelPicker:
 
     def _add_rectangle(self, event):
         xys_to_add = self._get_xys_from_event(event).difference(self.xys)
-
         if len(xys_to_add) > 0:
             self.xys.update(xys_to_add)
-            xs, ys = zip(*self.xys)
-            for line in self.lines:
-                line.set_data(xs, ys)
-            self._render()
+            self._draw_picked_pixels()
 
     def _remove_rectangle(self, event):
         xys_to_remove = self._get_xys_from_event(event).intersection(self.xys)
         if len(xys_to_remove) > 0:
             self.xys = self.xys.difference(xys_to_remove)
+            self._draw_picked_pixels()
+
+    def _draw_picked_pixels(self):
+        if len(self.xys) > 1:
             xs, ys = zip(*self.xys)
-            for line in self.lines:
-                line.set_data(xs, ys)
-            self._render()
+        else:
+            xs = ys = []
+        for line in self.lines:
+            line.set_data(xs, ys)
+
+        self._render()
 
     def _render(self):
         self.figure.canvas.draw_idle()
