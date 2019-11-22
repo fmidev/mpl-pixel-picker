@@ -171,7 +171,7 @@ class PixelPicker:
         self._render()
 
 
-def pick_pixels(class_num=0, radius=0, color=(1, 0, 0, 0.5),
+def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
                 pick_button=1, erase_button=3, reset_button=2,
                 is_interpolation_used=True):
     """
@@ -179,9 +179,9 @@ def pick_pixels(class_num=0, radius=0, color=(1, 0, 0, 0.5),
     :param class_num: Number of the class
     :param radius: Radius of the drawing circle
     :param color: Color of the painted pixels
-    :param pick_button: 1 = left click, 2 = middle click, 3 = right click
-    :param erase_button: 1 = left click, 2 = middle click, 3 = right click
-    :param reset_button: 1 = left click, 2 = middle click, 3 = right click
+    :param pick_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
+    :param erase_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
+    :param reset_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
     :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
