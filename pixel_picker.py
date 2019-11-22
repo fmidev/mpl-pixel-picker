@@ -2,7 +2,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import importlib
 
+#############################################################
+## PixelPicker
+## A tool for picking pixels from maptplotlib plotted images
+#############################################################
+## Author: Joona Laine, Sanna Hautala, Spatineo Oy
+## Copyright: Copyright 2019, PixelPicker
+#############################################################
+
+__author__ = 'Joona Laine, Sanna Hautala, Spatineo Oy'
+__copyright__ = 'Copyright 2019, PixelPicker'
+
 class PixelPicker:
+    """PixelPicker for picking pixels from matplotlib plotted images"""
     # When plotting in matplotlib the OFFSET is used with image extent
     OFFSET = 0.5
     MARKERSIZE = 1
@@ -33,6 +45,16 @@ class PixelPicker:
         self.axs[0].callbacks.connect('xlim_changed', self._update_marker_size)
         self.axs[0].callbacks.connect('ylim_changed', self._update_marker_size)
 
+    def get_pixels(self):
+        """Returns list of coordinate tuples"""
+        return list(self.xys)
+
+    def clear(self):
+        """Clears picked pixels"""
+        for line in self.lines:
+            line.set_data([], [])
+        self._render()
+
     def _update_marker_size(self, axes=None):
         ppd = 72. / self.axs[0].figure.dpi
         trans = self.axs[0].transData.transform
@@ -42,64 +64,40 @@ class PixelPicker:
         self._render()
 
     def _on_click(self, event):
-        # print('click', event)
-        if self._valid_pick_event(event):
+        if self._valid_event(event, self.pick_button):
             # Hand mouse cursor = 0, arrow = 1, cross = 2
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
             self._add_rectangle(event)
-        elif self._valid_erase_event(event):
+        elif self._valid_event(event, self.erase_button):
             # Hand mouse cursor = 0, arrow = 1, cross = 2
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
             self._remove_rectangle(event)
-        elif self._valid_reset_event(event):
+        elif self._valid_event(event, self.reset_button):
             self.xys = set()
             self._draw_picked_pixels()
 
     def _on_motion(self, event):
-        # print('motion', event)
-        if self._valid_pick_event(event):
+        if self._valid_event(event, self.pick_button):
             self._add_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
-        elif self._valid_erase_event(event):
+        elif self._valid_event(event, self.erase_button):
             self._remove_rectangle(event)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
 
     def _on_release(self, event):
-        # print('relese', event)
-        if self._valid_pick_event(event):
+        self.previous_xy = None
+        if self._valid_event(event, self.pick_button):
             self.figure.canvas.toolbar.set_cursor(1)
-        if self._valid_erase_event(event):
+        if self._valid_event(event, self.erase_button):
             self.figure.canvas.toolbar.set_cursor(1)
 
-    def _valid_pick_event(self, event):
+    def _valid_event(self, event, button):
         return (
                 event.inaxes in self.axs
                 # Right button pressed
-                and event.button == self.pick_button
-                # No tool is active
-                and self.figure.canvas.manager.toolbar._active is None
-                # Cursor inside image
-                and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
-        )
-
-    def _valid_erase_event(self, event):
-        return (
-                event.inaxes in self.axs
-                # Right button pressed
-                and event.button == self.erase_button
-                # No tool is active
-                and self.figure.canvas.manager.toolbar._active is None
-                # Cursor inside image
-                and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
-        )
-
-    def _valid_reset_event(self, event):
-        return (
-                event.inaxes in self.axs
-                # Right button pressed
-                and event.button == self.reset_button
+                and event.button == button
                 # No tool is active
                 and self.figure.canvas.manager.toolbar._active is None
                 # Cursor inside image
@@ -123,7 +121,7 @@ class PixelPicker:
         xys = set()
         xy = (int(round(event.xdata)), int(round(event.ydata)))
         xys.add(xy)
-        if self.is_interpolation_used:
+        if self.is_interpolation_used and self.previous_xy is not None:
             xys.update(self._get_interpolated_xy(xy, self.previous_xy))
 
         rounding_xys = set()
@@ -162,16 +160,9 @@ class PixelPicker:
     def _render(self):
         self.figure.canvas.draw_idle()
 
-    def get_pixels(self):
-        return list(self.xys)
-
-    def clear(self):
-        for line in self.lines:
-            line.set_data([], [])
-        self._render()
-
 
 def gui(picker):
+    """Graphical ui for pixel picker"""
     import tkinter as tk
 
     gui_window = tk.Tk()
@@ -215,8 +206,9 @@ def ui(picker):
 
 def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
                 pick_button=1, erase_button=3, reset_button=2,
-                is_interpolation_used=True, picked_coordinates=tuple(), use_gui=True):
+                is_interpolation_used=True, picked_coordinates=tuple(), use_gui=False):
     """
+    Helper function to start picking pixels
 
     :param class_num: Number of the class
     :param radius: Radius of the drawing circle (0 = 1 pixel)
@@ -255,6 +247,7 @@ def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
 
 
 def generate_random_image(loc, title, h=600, w=600, old_ax=None):
+    """Returns random image"""
     img = (np.random.standard_normal([h, w, 3]) * 255).astype(np.uint8)
     ax = plt.subplot(loc) if old_ax is None else plt.subplot(loc, sharex=old_ax, sharey=old_ax)
     ax.set_adjustable('box')
@@ -265,6 +258,7 @@ def generate_random_image(loc, title, h=600, w=600, old_ax=None):
 
 
 def generate_test_figure():
+    """Generates test figures using matplotlib and random generated images"""
     plt.figure(1, figsize=(8, 10))
     plt.clf()
     plt.ion()
