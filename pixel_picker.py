@@ -187,13 +187,23 @@ def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
     lines = []
+    continue_picking = True
 
     for axes in fig.get_axes():
         line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
         lines.append(line)
 
     picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used)
-    input("Press enter to stop picking pixels")
+    while continue_picking:
+        result = input("Press enter to stop picking pixels or choose a pixel radius: ")
+        if result == "":
+            continue_picking  = False
+            break
+        elif result.isdigit():
+            picker.radius = int(result)
+        else:
+            print("Unknown command")
+    #input("Press enter to stop picking pixels ")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
     return pixels if len(pixels) > 1 else []
