@@ -7,13 +7,14 @@ class PixelPicker:
     OFFSET = 0.5
     MARKERSIZE = 1
 
-    def __init__(self, figure, lines, radius, pick_button, erase_button, is_interpolation_used):
+    def __init__(self, figure, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used):
         self.xys = set()
         self.previous_xy = None
         self.figure = figure
         self.axs = figure.get_axes()
         self.pick_button = pick_button
         self.erase_button = erase_button
+        self.reset_button = reset_button
         self.is_interpolation_used = is_interpolation_used
         self.radius = radius
         self.x_min, self.x_max, self.y_max, self.y_min = [int(val + self.OFFSET) for val in
@@ -51,6 +52,9 @@ class PixelPicker:
             self.figure.canvas.toolbar.set_cursor(0)
             self.previous_xy = (int(round(event.xdata)), int(round(event.ydata)))
             self._remove_rectangle(event)
+        elif self._valid_reset_event(event):
+            self.xys = set()
+            self._draw_picked_pixels()
 
     def _on_motion(self, event):
         # print('motion', event)
@@ -84,6 +88,17 @@ class PixelPicker:
                 event.inaxes in self.axs
                 # Right button pressed
                 and event.button == self.erase_button
+                # No tool is active
+                and self.figure.canvas.manager.toolbar._active is None
+                # Cursor inside image
+                and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
+        )
+
+    def _valid_reset_event(self, event):
+        return (
+                event.inaxes in self.axs
+                # Right button pressed
+                and event.button == self.reset_button
                 # No tool is active
                 and self.figure.canvas.manager.toolbar._active is None
                 # Cursor inside image
@@ -156,15 +171,17 @@ class PixelPicker:
         self._render()
 
 
-def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5), pick_button=1, erase_button=3,
+def pick_pixels(class_num=0, radius=0, color=(1, 0, 0, 0.5),
+                pick_button=1, erase_button=3, reset_button=2,
                 is_interpolation_used=True):
     """
 
     :param class_num: Number of the class
     :param radius: Radius of the drawing circle
     :param color: Color of the painted pixels
-    :param pick_button: 1 = left click, 3 = right click
-    :param erase_button: 1 = left click, 3 = right click
+    :param pick_button: 1 = left click, 2 = middle click, 3 = right click
+    :param erase_button: 1 = left click, 2 = middle click, 3 = right click
+    :param reset_button: 1 = left click, 2 = middle click, 3 = right click
     :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
@@ -175,11 +192,11 @@ def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5), pick_button=1, eras
         line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
         lines.append(line)
 
-    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, is_interpolation_used)
+    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used)
     input("Press enter to stop picking pixels")
     pixels = [class_num] + picker.get_pixels()
     picker.clear()
-    return pixels
+    return pixels if len(pixels) > 1 else []
 
 
 def generate_random_image(loc, title, h=600, w=600, old_ax=None):
