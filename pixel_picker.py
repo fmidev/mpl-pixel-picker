@@ -151,13 +151,12 @@ class PixelPicker:
             self._draw_picked_pixels()
 
     def _draw_picked_pixels(self):
-        if len(self.xys) > 1:
+        if len(self.xys) > 0:
             xs, ys = zip(*self.xys)
         else:
             xs = ys = []
         for line in self.lines:
             line.set_data(xs, ys)
-
         self._render()
 
     def _render(self):
