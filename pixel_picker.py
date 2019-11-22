@@ -7,8 +7,8 @@ class PixelPicker:
     OFFSET = 0.5
     MARKERSIZE = 1
 
-    def __init__(self, figure, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used):
-        self.xys = set()
+    def __init__(self, figure, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used, xys):
+        self.xys = xys
         self.previous_xy = None
         self.figure = figure
         self.axs = figure.get_axes()
@@ -24,6 +24,7 @@ class PixelPicker:
         self._render()
         self.lines = lines
         self._update_marker_size()
+        self._draw_picked_pixels()
 
         # Callbacks
         self.cid = figure.canvas.mpl_connect('button_press_event', self._on_click)
@@ -173,7 +174,7 @@ class PixelPicker:
 
 def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
                 pick_button=1, erase_button=3, reset_button=2,
-                is_interpolation_used=True):
+                is_interpolation_used=True, picked_coordinates=tuple()):
     """
 
     :param class_num: Number of the class
@@ -183,17 +184,22 @@ def pick_pixels(class_num=0, radius=8, color=(1, 0, 0, 0.5),
     :param erase_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
     :param reset_button: 1 = left click, 2 = middle click, 3 = right click, None = no button
     :param is_interpolation_used: True = Interpolates points in between when moving mouse too fast, False = No interpolation
+    :param picked_coordinates: Already picked coordinates. Format: Class number and after that pixel x and y coordinates
+    as tuples inside a list or tuple
     :return: Class number and after that pixel x and y coordinates as tuples inside a list
     """
     fig = list(map(plt.figure, plt.get_fignums()))[0]
     lines = []
     continue_picking = True
 
+    # The first value of the picked_coordinates is probably a class_num, let's ommit that
+    xys = set(picked_coordinates[1:])
+
     for axes in fig.get_axes():
         line, = axes.plot([], [], linestyle="none", marker='s', markersize=1, color=color)
         lines.append(line)
 
-    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used)
+    picker = PixelPicker(fig, lines, radius, pick_button, erase_button, reset_button, is_interpolation_used, xys)
     while continue_picking:
         result = input("Press enter to stop picking pixels or choose a pixel radius: ")
         if result == "":
