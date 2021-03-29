@@ -103,7 +103,7 @@ class PixelPicker:
                 # Right button pressed
                 and event.button == button
                 # No tool is active
-                and self.figure.canvas.manager.toolbar._active is None
+                and self.figure.canvas.manager.toolbar.mode == ''
                 # Cursor inside image
                 and any([axes.get_images()[0].contains(event)[0] for axes in self.axs])
         )
