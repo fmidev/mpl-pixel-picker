@@ -10,9 +10,9 @@ A tool to pick pixel coordinates from Matplotlib plotted images
 
 Tested versions
 
-* Python 3.6.9
-* matplotlib==3.1.1
-* numpy==1.17.3
+* Python 3.8.5
+* matplotlib==3.4.0
+* numpy==1.20.2
 * tkinter==8.6.9 (optional)
 
 ### Basic use of the tool
